@@ -1,0 +1,32 @@
+class ApiEndPoints {
+  // static const String baseUrl = "https://api.test.wedbox.com/api";
+  static const String baseUrl = "https://api.wedbox.com/api";
+  static const String login = "$baseUrl/v1/auth/login";
+  static const String register = "$baseUrl/v1/auth/register";
+  static const String logout = "$baseUrl/v1/auth/logout";
+  static const String events = "$baseUrl/v1/weddings";
+  static String updateEventDetails(String weddingId) => "$baseUrl/v1/wedding/$weddingId/welcome-edit";
+  static const String invitationDetails = "$baseUrl/v1/invite-guests";
+  static const String invitePhotographer = "$baseUrl/v1/invite-photographer";
+  static const String guests = "$baseUrl/v1/guests";
+  static const String upload = "$baseUrl/v1/photostream/upload";
+  static const String photostream = "$baseUrl/v1/photostream";
+  static const String userProfile = "$baseUrl/v1/profile";
+  static const String createEvent = "$baseUrl/v1/wedding/create";
+  static const String resetPassword = "$baseUrl/v1/reset-password";
+  static const String joinEvent = "$baseUrl/v1/wedding/join";
+  static const String socialLogin = "$baseUrl/v1/auth/social/firebase-id-auth";
+  static const String requestZip = "$baseUrl/v1/photostream-download";
+  static const String deleteAccount = "$baseUrl/v1/auth/delete-account";
+  static const String deletePhoto = "$baseUrl/v1/photostream-delete";
+  static const String translations = "https://api.translation.wedbox.com/api/v1/app-translations";
+  static const String missingTranslations = "$baseUrl/v1/app-translations-log";
+  static const String leaveWedding = "$baseUrl/v1/leave-weddings";
+  static const String timeline = "$baseUrl/v1/weddings/timeline-events";
+  static const String sentDeviceInfo = "$baseUrl/v1/app-information";
+  static const String toogleLike = "$baseUrl/v1/photostream-like-dislike";
+  static const String postComment = "$baseUrl/v1/photostream-comment";
+  static String updateTimelineEventDetails(String weddingId) => "$baseUrl/v1/weddings/$weddingId/timeline-events";
+  static String deleteTimelineEvent(String weddingId) => "$baseUrl/v1/weddings/$weddingId/timeline-events";
+  static String updateWeddingDate(String weddingId) => "$baseUrl/v1/update-wedding-date/$weddingId";
+}

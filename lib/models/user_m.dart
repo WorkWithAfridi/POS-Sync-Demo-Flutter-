@@ -5,15 +5,7 @@ class User {
 
   User({this.id, required this.name, required this.createdAt});
 
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'created_at': createdAt,
-      };
+  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'created_at': createdAt};
 
-  factory User.fromMap(Map<String, dynamic> map) => User(
-        id: map['id'],
-        name: map['name'],
-        createdAt: map['created_at'],
-      );
+  factory User.fromMap(Map<String, dynamic> map) => User(id: map['id'], name: map['name'], createdAt: map['created_at'] ?? DateTime.now().toIso8601String());
 }

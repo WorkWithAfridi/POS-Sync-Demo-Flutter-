@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -8,8 +9,11 @@ import 'package:user_sync/utils/logger.dart';
 
 class SyncService {
   final DatabaseService _db = DatabaseService();
+  Timer? _pollingTimer;
 
-  /// Sync local DB with parent at [parentIp]
+  /// ------------------------------
+  /// Pull: Sync local DB with parent at [parentIp]
+  /// ------------------------------
   Future<void> syncWithParent(String parentIp) async {
     final url = 'http://$parentIp:8080/users';
     try {
@@ -29,11 +33,24 @@ class SyncService {
           throw Exception('Unexpected response type: ${response.data.runtimeType}');
         }
 
-        // Map to User objects and replace local DB
+        // Map to User objects
         final users = data.map((e) => User.fromMap(e)).toList();
-        await _db.replaceAllUsers(users);
+        logger.debug("Received ${users.length} user(s) from parent.");
 
-        logger.debug('Local database synced with parent: ${users.length} users.');
+        // Merge: only add new users
+        final existingUsers = await _db.getUsers();
+        final existingIDs = existingUsers.map((u) => u.id).toSet();
+        logger.debug("Existing id: $existingIDs");
+
+        final newUsers = users.where((u) => !existingIDs.contains(u.id)).toList();
+
+        logger.debug("Existing users: ${existingUsers.length}, New users: ${newUsers.length}, Total users: ${existingUsers.length + newUsers.length}");
+
+        for (var user in newUsers) {
+          await _db.insertUser(user);
+        }
+
+        logger.debug('Local DB merged ${newUsers.length} new user(s) from parent.');
       } else {
         logger.debug('Failed to fetch users from parent. Status: ${response?.statusCode}');
       }
@@ -44,23 +61,46 @@ class SyncService {
     }
   }
 
-  /// Push local users to parent (optional, for two-way sync)
-  Future<void> pushToParent(String parentIp) async {
+  /// ------------------------------
+  /// Push: Send local users to parent
+  /// ------------------------------
+  Future<void> pushToParent(String parentIp, [List<User>? usersToPush]) async {
     final url = 'http://$parentIp:8080/sync';
-    final users = await _db.getUsers();
+    final users = usersToPush ?? await _db.getUsers();
     final body = {'users': users.map((u) => u.toMap()).toList()};
 
     try {
-      logger.debug('Pushing local users to parent: $url');
+      logger.debug('Pushing ${users.length} user(s) to parent: $url');
       final response = await networkControllerInstance.request(url: url, method: Method.POST, params: body);
 
       if (response != null && response.statusCode == 200) {
-        logger.debug('Successfully pushed local users to parent.');
+        logger.debug('Successfully pushed ${users.length} user(s) to parent.');
       } else {
         logger.debug('Failed to push users. Status: ${response?.statusCode}');
       }
     } catch (e) {
       logger.error('Error pushing users to parent', e);
     }
+  }
+
+  /// ------------------------------
+  /// Start periodic polling from parent
+  /// ------------------------------
+  void startPolling(String parentIp, {int intervalSeconds = 5, Function? onPoll}) {
+    stopPolling(); // cancel existing timer if any
+
+    _pollingTimer = Timer.periodic(Duration(seconds: intervalSeconds), (_) async {
+      await syncWithParent(parentIp);
+      onPoll?.call();
+    });
+
+    logger.debug('Started polling parent at $parentIp every $intervalSeconds seconds.');
+  }
+
+  /// Stop periodic polling
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    logger.debug('Stopped polling parent.');
   }
 }

@@ -16,7 +16,7 @@ class ServerService {
   HttpServer? _server;
 
   /// Start the parent server
-  Future<bool> startServer() async {
+  Future<bool> startServer({Function? onNewPush}) async {
     if (_server != null) return false; // already running
 
     final app = Router();
@@ -28,13 +28,30 @@ class ServerService {
       return Response.ok(jsonEncode(users.map((u) => u.toMap()).toList()), headers: {'Content-Type': 'application/json'});
     });
 
-    // POST endpoint: sync users
+    // POST endpoint: sync users (merge, avoid duplicates)
     app.post('/sync', (Request req) async {
-      final body = await req.readAsString();
-      final data = jsonDecode(body);
-      final List users = data['users'];
-      await db.replaceAllUsers(users.map((e) => User.fromMap(e)).toList());
-      return Response.ok(jsonEncode({'status': 'ok'}));
+      try {
+        final body = await req.readAsString();
+        final data = jsonDecode(body);
+        final List users = data['users'];
+
+        final existingUsers = await db.getUsers();
+        final existingIDs = existingUsers.map((u) => u.id).toSet();
+
+        final newUsers = users.map((e) => User.fromMap(e)).where((u) => !existingIDs.contains(u.id)).toList();
+
+        for (var user in newUsers) {
+          await db.insertUser(user);
+        }
+
+        logger.debug('Parent merged ${newUsers.length} new user(s) from child.');
+        onNewPush?.call();
+
+        return Response.ok(jsonEncode({'status': 'ok', 'added': newUsers.length}), headers: {'Content-Type': 'application/json'});
+      } catch (e, st) {
+        logger.error('Error in /sync endpoint', e, st);
+        return Response.internalServerError(body: jsonEncode({'status': 'error', 'message': e.toString()}), headers: {'Content-Type': 'application/json'});
+      }
     });
 
     // Bind server to all interfaces
